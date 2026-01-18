@@ -769,11 +769,11 @@
       await afterLoginSync();
     } else {
       syncTagEl().textContent = "offline";
-      // możesz wymusić logowanie od razu:
-      // openAuth();
+      openAuth();
     }
   };
 
   boot();
 })();
+
 
