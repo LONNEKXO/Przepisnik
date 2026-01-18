@@ -82,11 +82,12 @@ async function remoteLoad() {
 
   const raw = await res.json();
 
-  // 🧠 unwrap: obsługa {data:{...}} / {ok:true,data:{...}} / {...}
+  // obsługa różnych formatów: {data:{...}}, {ok:true,data:{...}}, albo {...}
   const data = (raw && raw.data) ? raw.data : raw;
 
   return data || {};
 }
+
 
 
   async function remoteSave(data) {
@@ -197,26 +198,57 @@ async function remoteLoad() {
   };
 
   // ===== Persist (local always, remote debounced if logged in) =====
-  const persist = () => {
-    saveLocal();
+const persist = () => {
+  saveLocal();
 
-    const token = getSession();
-    if (!token) {
-      syncTagEl().textContent = "offline";
-      return;
-    }
+  const token = getSession();
+  if (!token) {
+    syncTagEl().textContent = "offline";
+    return;
+  }
 
-    syncTagEl().textContent = "sync...";
-    clearTimeout(state._syncTimer);
-    state._syncTimer = setTimeout(async () => {
-      try {
+  syncTagEl().textContent = "sync...";
+  clearTimeout(state._syncTimer);
+
+  state._syncTimer = setTimeout(async () => {
+    try {
+      // 1) pobierz aktualny stan z chmury
+      const remote = await remoteLoad();
+      const remoteLooksValid = remote && Array.isArray(remote.categories) && Array.isArray(remote.recipes);
+
+      if (!remoteLooksValid) {
+        // jeśli chmura pusta, zapisujemy naszą wersję
         await remoteSave(state.data);
         syncTagEl().textContent = "synced";
-      } catch {
-        syncTagEl().textContent = "offline";
+        return;
       }
-    }, 800);
-  };
+
+      // 2) jeśli remote != local (ktoś inny zmienił), to NIE nadpisujemy w ciemno
+      const remoteStr = JSON.stringify(remote);
+      const localStr = JSON.stringify(state.data);
+
+      if (remoteStr !== localStr) {
+        // przyjmujemy remote jako master i pokazujemy userowi info
+        state.data = remote;
+        ensureCoreCategories();
+        saveLocal();
+        renderAll();
+        renderCatDropdownOptions();
+
+        syncTagEl().textContent = "synced";
+        toast("Ktoś zmienił dane. Odświeżono z chmury ✅");
+        return;
+      }
+
+      // 3) jeśli identyczne, zapis jest bezpieczny
+      await remoteSave(state.data);
+      syncTagEl().textContent = "synced";
+    } catch {
+      syncTagEl().textContent = "offline";
+    }
+  }, 800);
+};
+
 
   // ---------- Custom dropdown ----------
   const setCatDropdownValue = (id) => {
@@ -665,30 +697,36 @@ async function remoteLoad() {
     e.classList.add("show");
   };
 
-  async function afterLoginSync() {
-    try {
-      syncTagEl().textContent = "sync...";
-      const remote = await remoteLoad();
-      const remoteLooksValid = remote && Array.isArray(remote.categories) && Array.isArray(remote.recipes);
+async function afterLoginSync() {
+  try {
+    syncTagEl().textContent = "sync...";
 
-      if (remoteLooksValid) {
-        state.data = remote;
-        ensureCoreCategories();
-        saveLocal();
-        syncTagEl().textContent = "synced";
-        toast("Wczytano wspólne dane ✅");
-      } else {
-        await remoteSave(state.data);
-        syncTagEl().textContent = "synced";
-        toast("Ustawiono dane wspólne ✅");
-      }
-    } catch {
-      syncTagEl().textContent = "offline";
-      toast("Nie mogę zsynchronizować (offline).");
+    const remote = await remoteLoad();
+    const remoteLooksValid = remote && Array.isArray(remote.categories) && Array.isArray(remote.recipes);
+
+    if (remoteLooksValid) {
+      // ✅ chmura jest master
+      state.data = remote;
+      ensureCoreCategories();
+      saveLocal();
+      syncTagEl().textContent = "synced";
+      toast("Wczytano wspólne dane ✅");
+    } else {
+      // ✅ jeśli chmura jest pusta/zepsuta – inicjalizujemy ją naszą lokalną
+      ensureCoreCategories();
+      await remoteSave(state.data);
+      syncTagEl().textContent = "synced";
+      toast("Ustawiono wspólne dane ✅");
     }
-    renderAll();
-    renderCatDropdownOptions();
+  } catch {
+    syncTagEl().textContent = "offline";
+    toast("Nie mogę zsynchronizować (offline).");
   }
+
+  renderAll();
+  renderCatDropdownOptions();
+}
+
 
   // ---------- EVENTS ----------
   $("#addCategoryBtn").addEventListener("click", () => openCategoryModal());
@@ -808,4 +846,5 @@ async function remoteLoad() {
 
   boot();
 })();
+
 
