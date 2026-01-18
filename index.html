@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Przepiśnik — Twoje przepisy</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="card sidebar">
+      <header>
+        <h1>📚 Przepiśnik</h1>
+        <div class="tag" id="syncTag">offline</div>
+      </header>
+
+      <div class="controls">
+        <button class="btn primary" id="addCategoryBtn">+ Dodaj kategorię</button>
+        <div class="row">
+          <button class="btn" id="exportBtn">Eksport JSON</button>
+          <button class="btn" id="importBtn">Import</button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="openAuthBtn">🔐 Konto</button>
+        </div>
+        <div class="small">
+          Kategorie = foldery (ciasta, zupy, itd.).  
+          Export = backup, jakby Ci się zachciało “sprzątać” dane o 3 w nocy.
+        </div>
+      </div>
+
+      <div class="list" id="categoryList"></div>
+    </aside>
+
+    <main class="card main">
+      <header>
+        <h1 id="headerTitle">🍲 Wszystkie przepisy</h1>
+        <input class="input search" id="searchInput" placeholder="Szukaj: nazwa, składnik, instrukcja…" />
+        <button class="btn ok" id="addRecipeBtn">+ Dodaj przepis</button>
+      </header>
+
+      <div class="content">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Lista przepisów</h2>
+            <div class="pill" id="countPill">0</div>
+          </div>
+          <div class="panel-body" id="recipeList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Szczegóły</h2>
+            <div class="row">
+              <button class="btn ghost" id="editRecipeBtn" disabled>Edytuj</button>
+              <button class="btn danger" id="deleteRecipeBtn" disabled>Usuń</button>
+            </div>
+          </div>
+          <div class="panel-body" id="recipeDetail">
+            <div class="empty">
+              Kliknij przepis z listy po lewej — pokażę składniki i instrukcję.
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: Category -->
+  <div class="modal" id="categoryModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="categoryModalTitle">Dodaj kategorię</h3>
+        <button class="btn ghost" id="closeCategoryModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="kv">
+          <label>Nazwa kategorii (folderu)</label>
+          <input class="input" id="categoryNameInput" placeholder="np. Ciasta / Zupy / Fit / Szybkie" />
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn" id="cancelCategoryBtn">Anuluj</button>
+          <button class="btn primary" id="saveCategoryBtn">Zapisz</button>
+        </div>
+        <div class="small muted">
+          Tip: „Bez kategorii” istnieje i jest nieusuwalne (żeby przepisy nie ginęły).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Recipe -->
+  <div class="modal" id="recipeModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="recipeModalTitle">Dodaj przepis</h3>
+        <button class="btn ghost" id="closeRecipeModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="split">
+          <div class="kv">
+            <label>Nazwa dania</label>
+            <input class="input" id="recipeTitleInput" placeholder="np. Sernik klasyk" />
+          </div>
+
+          <div class="kv">
+            <label>Kategoria (folder)</label>
+
+            <!-- Custom select -->
+            <div class="selectWrap" id="catSelectWrap">
+              <div class="cselect" id="catSelectBtn" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false">
+                <div class="label" id="catSelectLabel">Wybierz kategorię</div>
+                <div class="chev">▾</div>
+              </div>
+
+              <div class="cselect-menu" id="catSelectMenu">
+                <div class="cselect-search">
+                  <input id="catSelectSearch" placeholder="Szukaj kategorii…" />
+                </div>
+                <div id="catSelectOptions"></div>
+              </div>
+            </div>
+
+            <input type="hidden" id="recipeCategoryHidden" />
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div>
+          <div class="row" style="justify-content:space-between; margin-bottom:8px">
+            <div style="font-weight:900">Składniki</div>
+            <button class="btn" id="addIngredientBtn">+ Dodaj składnik</button>
+          </div>
+          <div id="ingredientsWrap"></div>
+          <div class="small muted">Jednostki: g, ml, szt, łyżka, łyżeczka… totalnie jak chcesz.</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="kv">
+          <label>Sposób przygotowania</label>
+          <textarea id="recipeStepsInput" placeholder="Krok 1: ...&#10;Krok 2: ..."></textarea>
+        </div>
+
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn" id="cancelRecipeBtn">Anuluj</button>
+          <button class="btn primary" id="saveRecipeBtn">Zapisz przepis</button>
+        </div>
+
+        <div class="small muted">
+          MVP działa. Jak chcesz, dorobimy zdjęcia, tagi i listę zakupów.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Overlay -->
+  <div class="auth" id="authModal">
+    <div class="auth-card">
+      <div class="auth-head">
+        <h3>🔐 Logowanie (wspólny domowy dostęp)</h3>
+        <button class="btn ghost" id="authCloseBtn">✕</button>
+      </div>
+      <div class="auth-body">
+        <div class="kv">
+          <label>Login</label>
+          <input class="input" id="authUser" placeholder="np. Bigos12" autocomplete="username" />
+        </div>
+        <div class="kv">
+          <label>Hasło</label>
+          <input class="input" id="authPass" type="password" placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div class="err" id="authError"></div>
+        <div class="row" style="justify-content:flex-end">
+          <button class="btn" id="authLogoutBtn" title="Czyści sesję">Wyloguj</button>
+          <button class="btn primary" id="authLoginBtn">Zaloguj</button>
+        </div>
+        <div class="hint">
+          Po zalogowaniu dane lecą do Supabase i wszyscy domownicy widzą to samo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Area (tylko do drukowania) -->
+  <div id="printArea" aria-hidden="true"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
