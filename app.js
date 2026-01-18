@@ -73,14 +73,21 @@
     return data.token;
   }
 
-  async function remoteLoad() {
-    const token = getSession();
-    if (!token) throw new Error("NO_SESSION");
-    const res = await apiFetch("/state", { method: "GET", sessionToken: token });
-    if (!res.ok) throw new Error("REMOTE_GET_FAILED");
-    const data = await res.json();
-    return data || {};
-  }
+async function remoteLoad() {
+  const token = getSession();
+  if (!token) throw new Error("NO_SESSION");
+
+  const res = await apiFetch("/state", { method: "GET", sessionToken: token });
+  if (!res.ok) throw new Error("REMOTE_GET_FAILED");
+
+  const raw = await res.json();
+
+  // 🧠 unwrap: obsługa {data:{...}} / {ok:true,data:{...}} / {...}
+  const data = (raw && raw.data) ? raw.data : raw;
+
+  return data || {};
+}
+
 
   async function remoteSave(data) {
     const token = getSession();
@@ -801,3 +808,4 @@
 
   boot();
 })();
+
