@@ -2,7 +2,7 @@
 (() => {
   // ===== Supabase sync config =====
   const API_BASE = "https://dnuebkauakifgkagiurz.supabase.co/functions/v1";
-  const SUPABASE_LEGACY_ANON = "TU_WKLEJ_LEGACY_ANON_EyJ..."; // <-- PODMIEN
+  const SUPABASE_LEGACY_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudWVia2F1YWtpZmdrYWdpdXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3Mjk1ODIsImV4cCI6MjA4NDMwNTU4Mn0.hsJ87gKU9hmIuRE4gvG31IIskqTqYFGYylVO2YEpaGM";
   const SESSION_KEY = "przepiśnik.session.v1";
 
   const STORAGE_KEY = "przepiśnik.v2";
@@ -776,3 +776,4 @@
 
   boot();
 })();
+
