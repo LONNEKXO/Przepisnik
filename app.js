@@ -228,18 +228,12 @@ const mergeState = (remoteRaw, localRaw) => {
   const remote = normalizeData(remoteRaw);
   const local = normalizeData(localRaw);
 
-  // remote jest bazą, local dopina brakujące rzeczy
-  const merged = {
+  return {
     categories: mergeById(remote.categories, local.categories),
     recipes: mergeById(remote.recipes, local.recipes),
   };
-
-  return merged;
 };
 
-
-
-  
 const persist = () => {
   saveLocal();
 
@@ -257,7 +251,6 @@ const persist = () => {
       const remote = await remoteLoad();
       const merged = mergeState(remote, state.data);
 
-      // ważne core kategorie
       state.data = merged;
       ensureCoreCategories();
       saveLocal();
@@ -265,38 +258,13 @@ const persist = () => {
       await remoteSave(state.data);
 
       syncTagEl().textContent = "synced";
-    } catch {
+    } catch (e) {
       syncTagEl().textContent = "offline";
+      console.error(e);
     }
   }, 500);
 };
 
-
-      // 2) jeśli remote != local (ktoś inny zmienił), to NIE nadpisujemy w ciemno
-      const remoteStr = JSON.stringify(remote);
-      const localStr = JSON.stringify(state.data);
-
-      if (remoteStr !== localStr) {
-        // przyjmujemy remote jako master i pokazujemy userowi info
-        state.data = remote;
-        ensureCoreCategories();
-        saveLocal();
-        renderAll();
-        renderCatDropdownOptions();
-
-        syncTagEl().textContent = "synced";
-        toast("Ktoś zmienił dane. Odświeżono z chmury ✅");
-        return;
-      }
-
-      // 3) jeśli identyczne, zapis jest bezpieczny
-      await remoteSave(state.data);
-      syncTagEl().textContent = "synced";
-    } catch {
-      syncTagEl().textContent = "offline";
-    }
-  }, 800);
-};
 
 
   // ---------- Custom dropdown ----------
@@ -895,6 +863,7 @@ async function afterLoginSync() {
 
   boot();
 })();
+
 
 
 
