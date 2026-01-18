@@ -2,10 +2,14 @@
 (() => {
   // ===== Supabase sync config =====
   const API_BASE = "https://dnuebkauakifgkagiurz.supabase.co/functions/v1";
-  const SUPABASE_LEGACY_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudWVia2F1YWtpZmdrYWdpdXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3Mjk1ODIsImV4cCI6MjA4NDMwNTU4Mn0.hsJ87gKU9hmIuRE4gvG31IIskqTqYFGYylVO2YEpaGM";
-  const SESSION_KEY = "przepiśnik.session.v1";
-
+ const SUPABASE_LEGACY_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRudWVia2F1YWtpZmdrYWdpdXJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3Mjk1ODIsImV4cCI6MjA4NDMwNTU4Mn0.hsJ87gKU9hmIuRE4gvG31IIskqTqYFGYylVO2YEpaGM";
   const STORAGE_KEY = "przepiśnik.v2";
+
+  // ===== Session (RAM only) =====
+  let SESSION_TOKEN = null;
+  const getSession = () => SESSION_TOKEN;
+  const setSession = (t) => { SESSION_TOKEN = t; };
+  const clearSession = () => { SESSION_TOKEN = null; };
 
   const $ = (sel) => document.querySelector(sel);
   const el = (tag, attrs = {}, children = []) => {
@@ -32,9 +36,19 @@
   };
 
   const syncTagEl = () => $("#syncTag");
-  const getSession = () => localStorage.getItem(SESSION_KEY);
-  const setSession = (t) => localStorage.setItem(SESSION_KEY, t);
-  const clearSession = () => localStorage.removeItem(SESSION_KEY);
+
+  const lockUI = (locked) => {
+    const app = document.querySelector(".app");
+    if (!app) return;
+    if (locked) app.classList.add("locked");
+    else app.classList.remove("locked");
+
+    const lockIds = ["addCategoryBtn", "addRecipeBtn", "exportBtn", "importBtn", "editRecipeBtn", "deleteRecipeBtn"];
+    lockIds.forEach((id) => {
+      const b = document.getElementById(id);
+      if (b) b.disabled = locked;
+    });
+  };
 
   async function apiFetch(path, { method = "GET", body = null, sessionToken = null } = {}) {
     const headers = {
@@ -342,8 +356,8 @@
       return;
     }
 
-    editBtn.disabled = false;
-    delBtn.disabled = false;
+    editBtn.disabled = !getSession();
+    delBtn.disabled = !getSession();
 
     wrap.innerHTML = "";
     wrap.appendChild(el("h3", { class: "detail-title", text: r.title }));
@@ -365,13 +379,7 @@
 
     wrap.appendChild(el("div", { class: "hr" }));
     wrap.appendChild(el("div", { style: "font-weight:900", text: "Sposób przygotowania" }));
-    wrap.appendChild(
-      el("div", {
-        class: "small",
-        style: "white-space:pre-wrap; margin-top:8px",
-        text: r.steps || "Brak opisu.",
-      })
-    );
+    wrap.appendChild(el("div", { class: "small", style: "white-space:pre-wrap; margin-top:8px", text: r.steps || "Brak opisu." }));
 
     wrap.appendChild(
       el("div", { class: "footer-actions" }, [
@@ -444,6 +452,7 @@
 
   // ---------- CATEGORY MODAL ----------
   const openCategoryModal = (categoryId = null) => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     state.editingCategoryId = categoryId;
     const isEdit = !!categoryId;
     $("#categoryModalTitle").textContent = isEdit ? "Edytuj kategorię" : "Dodaj kategorię";
@@ -458,6 +467,7 @@
   };
 
   const saveCategoryFromModal = () => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     const name = $("#categoryNameInput").value.trim();
     if (!name) return toast("Daj nazwę kategorii 🙂");
 
@@ -477,6 +487,7 @@
   };
 
   const deleteCategory = (categoryId) => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     const cat = state.data.categories.find((c) => c.id === categoryId);
     if (!cat) return;
 
@@ -510,6 +521,7 @@
   };
 
   const openRecipeModal = (recipeId = null) => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     state.editingRecipeId = recipeId;
 
     const isEdit = !!recipeId;
@@ -552,6 +564,7 @@
   };
 
   const saveRecipeFromModal = () => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     const title = $("#recipeTitleInput").value.trim();
     const categoryId = $("#recipeCategoryHidden").value || "uncat";
     const steps = $("#recipeStepsInput").value.trim();
@@ -583,6 +596,7 @@
   };
 
   const deleteSelectedRecipe = () => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     const r = state.data.recipes.find((x) => x.id === state.selectedRecipeId);
     if (!r) return;
     const ok = confirm(`Usunąć przepis: "${r.title}"?`);
@@ -597,6 +611,7 @@
 
   // ---------- EXPORT / IMPORT ----------
   const exportJSON = () => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     const data = JSON.stringify(state.data, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -609,6 +624,7 @@
   };
 
   const importJSON = async (file) => {
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
@@ -643,7 +659,6 @@
   };
 
   async function afterLoginSync() {
-    // strategia: remote wygrywa, chyba że jest puste → wtedy wrzucamy local
     try {
       syncTagEl().textContent = "sync...";
       const remote = await remoteLoad();
@@ -656,7 +671,6 @@
         syncTagEl().textContent = "synced";
         toast("Wczytano wspólne dane ✅");
       } else {
-        // remote puste → upload local jako start
         await remoteSave(state.data);
         syncTagEl().textContent = "synced";
         toast("Ustawiono dane wspólne ✅");
@@ -721,6 +735,7 @@
     if (e.key === "Escape") {
       closeCategoryModal();
       closeRecipeModal();
+      // nie zamykamy auth Escape gdy jest wymagana, ale i tak harmless:
       closeAuth();
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -731,14 +746,26 @@
 
   // auth buttons
   $("#openAuthBtn").addEventListener("click", openAuth);
-  $("#authCloseBtn").addEventListener("click", closeAuth);
-  $("#authModal").addEventListener("click", (e) => e.target.id === "authModal" && closeAuth());
+  $("#authCloseBtn").addEventListener("click", () => {
+    // nie pozwól zamknąć jeśli nie jesteś zalogowany
+    if (!getSession()) return toast("Najpierw zaloguj się 🔐");
+    closeAuth();
+  });
+  $("#authModal").addEventListener("click", (e) => {
+    // klik w tło: nie zamykamy jeśli brak sesji
+    if (e.target.id === "authModal") {
+      if (!getSession()) return toast("Najpierw zaloguj się 🔐");
+      closeAuth();
+    }
+  });
 
   $("#authLogoutBtn").addEventListener("click", () => {
     clearSession();
     syncTagEl().textContent = "offline";
     setAuthError(null);
-    toast("Wylogowano ✅ (zostaje cache)");
+    lockUI(true);
+    openAuth();
+    toast("Wylogowano ✅");
   });
 
   $("#authLoginBtn").addEventListener("click", async () => {
@@ -752,6 +779,7 @@
       const token = await remoteLogin(u, p);
       setSession(token);
       closeAuth();
+      lockUI(false);
       await afterLoginSync();
     } catch {
       syncTagEl().textContent = "offline";
@@ -764,16 +792,12 @@
     renderAll();
     renderCatDropdownOptions();
 
-    if (getSession()) {
-      syncTagEl().textContent = "sync...";
-      await afterLoginSync();
-    } else {
-      syncTagEl().textContent = "offline";
-      openAuth();
-    }
+    // zawsze wymuszamy logowanie od nowa:
+    clearSession();
+    syncTagEl().textContent = "offline";
+    lockUI(true);
+    openAuth();
   };
 
   boot();
 })();
-
-
