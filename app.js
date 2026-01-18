@@ -25,7 +25,7 @@
     return n;
   };
 
-  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+const uid = () => (crypto?.randomUUID ? crypto.randomUUID() : (Math.random().toString(16).slice(2) + Date.now().toString(16)));
 
   const toast = (msg) => {
     const t = $("#toast");
@@ -197,7 +197,49 @@ async function remoteLoad() {
       .sort((a, b) => b.createdAt - a.createdAt);
   };
 
-  // ===== Persist (local always, remote debounced if logged in) =====
+const normalizeData = (d) => {
+  const data = d && typeof d === "object" ? d : {};
+  return {
+    categories: Array.isArray(data.categories) ? data.categories : [],
+    recipes: Array.isArray(data.recipes) ? data.recipes : [],
+  };
+};
+
+const mergeById = (baseArr, addArr) => {
+  const out = [];
+  const seen = new Set();
+
+  for (const x of baseArr) {
+    if (!x || !x.id) continue;
+    if (seen.has(x.id)) continue;
+    seen.add(x.id);
+    out.push(x);
+  }
+  for (const x of addArr) {
+    if (!x || !x.id) continue;
+    if (seen.has(x.id)) continue;
+    seen.add(x.id);
+    out.push(x);
+  }
+  return out;
+};
+
+const mergeState = (remoteRaw, localRaw) => {
+  const remote = normalizeData(remoteRaw);
+  const local = normalizeData(localRaw);
+
+  // remote jest bazą, local dopina brakujące rzeczy
+  const merged = {
+    categories: mergeById(remote.categories, local.categories),
+    recipes: mergeById(remote.recipes, local.recipes),
+  };
+
+  return merged;
+};
+
+
+
+  
 const persist = () => {
   saveLocal();
 
@@ -212,16 +254,23 @@ const persist = () => {
 
   state._syncTimer = setTimeout(async () => {
     try {
-      // 1) pobierz aktualny stan z chmury
       const remote = await remoteLoad();
-      const remoteLooksValid = remote && Array.isArray(remote.categories) && Array.isArray(remote.recipes);
+      const merged = mergeState(remote, state.data);
 
-      if (!remoteLooksValid) {
-        // jeśli chmura pusta, zapisujemy naszą wersję
-        await remoteSave(state.data);
-        syncTagEl().textContent = "synced";
-        return;
-      }
+      // ważne core kategorie
+      state.data = merged;
+      ensureCoreCategories();
+      saveLocal();
+
+      await remoteSave(state.data);
+
+      syncTagEl().textContent = "synced";
+    } catch {
+      syncTagEl().textContent = "offline";
+    }
+  }, 500);
+};
+
 
       // 2) jeśli remote != local (ktoś inny zmienił), to NIE nadpisujemy w ciemno
       const remoteStr = JSON.stringify(remote);
@@ -846,5 +895,6 @@ async function afterLoginSync() {
 
   boot();
 })();
+
 
 
