@@ -248,22 +248,16 @@ const persist = () => {
 
   state._syncTimer = setTimeout(async () => {
     try {
-      const remote = await remoteLoad();
-      const merged = mergeState(remote, state.data);
-
-      state.data = merged;
-      ensureCoreCategories();
-      saveLocal();
-
+      // chmura ma dostać dokładnie to co masz w state.data
       await remoteSave(state.data);
-
       syncTagEl().textContent = "synced";
     } catch (e) {
       syncTagEl().textContent = "offline";
       console.error(e);
     }
-  }, 500);
+  }, 400);
 };
+
 
 
 
@@ -863,6 +857,7 @@ async function afterLoginSync() {
 
   boot();
 })();
+
 
 
 
