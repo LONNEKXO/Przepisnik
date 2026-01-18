@@ -488,3 +488,63 @@
       }
     }
     #printArea{ display:none; }
+
+    /* ====== AUTH OVERLAY (FIX) ====== */
+.auth{
+  position: fixed;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,.65);
+  z-index: 99999;
+}
+.auth.open{ display:flex; }
+
+.auth .auth-card{
+  width: min(520px, 100%);
+  background: rgba(10,14,22,.92);
+  border:1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+
+.auth .auth-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding: 14px 16px;
+  border-bottom:1px solid var(--border);
+}
+.auth .auth-head h3{margin:0; font-size:14px}
+
+.auth .auth-body{
+  padding: 16px;
+  display:grid;
+  gap: 12px;
+}
+.auth .hint{
+  font-size: 12px;
+  color: var(--muted);
+  line-height:1.35;
+}
+.auth .err{
+  font-size: 12px;
+  color: #ffd6dd;
+  background: rgba(255,77,109,.14);
+  border:1px solid rgba(255,77,109,.35);
+  padding: 10px 12px;
+  border-radius: 12px;
+  display:none;
+}
+.auth .err.show{display:block}
+
+/* ====== LOCK APP UNTIL LOGIN ====== */
+.app.locked{
+  pointer-events: none;
+  filter: blur(2px);
+  opacity: .55;
+}
